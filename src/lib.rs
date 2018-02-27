@@ -8,10 +8,56 @@ pub struct Command {
     pub data: Option<u16>,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Sender {
     Master,
     Slave,
+}
+
+impl Command {
+    pub fn into_bytes(self) -> Vec<u8> {
+        let mut res = vec!['{' as u8];
+        match self.sender {
+            Sender::Master => {
+                res.push('M' as u8);
+            }
+            Sender::Slave => {
+                res.push('S' as u8);
+            }
+        }
+        let mut addr = format!("{:X}", self.address);
+        if addr.len() < 2 {
+            addr = format!("0{}", addr);
+        }
+        res.append(&mut addr.as_bytes().into());
+        match self.data {
+            Some(d) => {
+                let mut data = format!("{:X}", d);
+                match data.len() {
+                    1 => {
+                        data = format!("000{}", data);
+                    }
+                    2 => {
+                        data = format!("00{}", data);
+                    }
+                    3 => {
+                        data = format!("0{}", data);
+                    }
+                    4 => { /* nothing to do */ }
+                    _ => {
+                        unreachable!();
+                    }
+                }
+                res.append(&mut data.as_bytes().into());
+            }
+            None => {
+                res.append(&mut "****".as_bytes().into());
+            }
+        }
+        res.push('\r' as u8);
+        res.push('\n' as u8);
+        res
+    }
 }
 
 impl FromStr for Command {
@@ -60,6 +106,7 @@ impl FromStr for Command {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use Sender::*;
 
     #[test]
     fn from_str_with_invalid_len() {
@@ -99,5 +146,121 @@ mod tests {
         assert_eq!(cmd.sender, Sender::Slave);
         assert_eq!(cmd.address, 0x22);
         assert_eq!(cmd.data, Some(0x3219));
+    }
+
+    #[test]
+    fn encode_start_char() {
+        assert_eq!(
+            Command {
+                sender: Master,
+                address: 0x31,
+                data: None,
+            }.into_bytes()[0],
+            '{' as u8
+        );
+    }
+
+    #[test]
+    fn encode_sender() {
+        let address = 0x31;
+        let data = None;
+        assert_eq!(
+            Command {
+                sender: Master,
+                address,
+                data,
+            }.into_bytes()[1],
+            'M' as u8
+        );
+        assert_eq!(
+            Command {
+                sender: Slave,
+                address,
+                data,
+            }.into_bytes()[1],
+            'S' as u8
+        );
+    }
+
+    #[test]
+    fn encode_address() {
+        let data = None;
+        let sender = Slave;
+        let cmd = Command {
+            sender,
+            address: 0x31,
+            data,
+        }.into_bytes();
+        assert_eq!(cmd[2], '3' as u8);
+        assert_eq!(cmd[3], '1' as u8);
+
+        let cmd = Command {
+            sender,
+            address: 0x7,
+            data,
+        }.into_bytes();
+        assert_eq!(cmd[2], '0' as u8);
+        assert_eq!(cmd[3], '7' as u8);
+    }
+
+    #[test]
+    fn encode_data() {
+        let address = 0x19;
+        let sender = Slave;
+
+        let cmd = Command {
+            sender,
+            address,
+            data: Some(1),
+        }.into_bytes();
+        assert_eq!(&cmd[4..8], b"0001");
+
+        let cmd = Command {
+            sender,
+            address,
+            data: Some(0xab),
+        }.into_bytes();
+        assert_eq!(&cmd[4..8], b"00AB");
+
+        let cmd = Command {
+            sender,
+            address,
+            data: Some(::std::u16::MAX),
+        }.into_bytes();
+        assert_eq!(&cmd[4..8], b"FFFF");
+
+        let cmd = Command {
+            sender,
+            address,
+            data: None,
+        }.into_bytes();
+        assert_eq!(&cmd[4..8], b"****");
+    }
+
+    #[test]
+    fn encode_delimiters() {
+        let cmd = Command {
+            sender: Master,
+            address: 0x22,
+            data: None,
+        }.into_bytes();
+        assert_eq!(&cmd[8..10], b"\r\n");
+    }
+
+    #[test]
+    fn encode_complete_command() {
+        let cmd = Command {
+            sender: Sender::Master,
+            address: 0x09,
+            data: Some(0x05E8),
+        }.into_bytes();
+        assert_eq!(cmd, b"{M0905E8\r\n");
+
+        let cmd = Command {
+            sender: Sender::Slave,
+            address: 0x19,
+            data: Some(0x0001),
+        }.into_bytes();
+        assert_eq!(cmd, b"{S190001\r\n");
     }
 }
