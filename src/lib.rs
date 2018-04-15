@@ -1,17 +1,60 @@
-use std::str::FromStr;
-use std::io::{Error, ErrorKind, Result};
+extern crate num_traits;
+#[macro_use]
+extern crate num_derive;
 
-#[derive(Debug, Clone, PartialEq)]
+use num_traits::cast::ToPrimitive;
+use std::io::{Error, ErrorKind, Result};
+use std::str::FromStr;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command {
     pub sender: Sender,
     pub address: u8,
     pub data: Option<u16>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Sender {
     Master,
     Slave,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, FromPrimitive, ToPrimitive)]
+pub enum Address {
+    /// Setpoint temperature controller
+    SetpointTempControl = 0x00,
+
+    /// Internal temperature
+    InternalTemp = 0x01,
+
+    /// Error report
+    ErrorReport = 0x05,
+
+    /// Warning message
+    WarningMessage = 0x06,
+
+    /// Setting process temperature
+    SetProcessTemp = 0x09,
+
+    /// Temperature control mode
+    TempControlMode = 0x13,
+
+    /// Temperature control
+    TempControl = 0x14,
+
+    /// Operating lock
+    OperationLock = 0x17,
+
+    /// Process temperature actual value setting mode
+    ProcessTempActualSettingMode = 0x19,
+}
+
+impl Into<u8> for Address {
+    fn into(self: Address) -> u8 {
+        // Note: we can safly unwrap here
+        // because max. of CmdAddress is 0x17 < 2^8
+        self.to_u8().unwrap()
+    }
 }
 
 impl Command {
@@ -262,5 +305,19 @@ mod tests {
             data: Some(0x0001),
         }.into_bytes();
         assert_eq!(cmd, b"{S190001\r\n");
+    }
+
+    #[test]
+    fn encode_address_enum() {
+        assert_eq!(Address::OperationLock.to_u8().unwrap(), 0x17);
+        let byte: u8 = Address::OperationLock.into();
+        assert_eq!(byte, 0x17);
+    }
+
+    #[test]
+    fn decode_address_enum() {
+        use num_traits::cast::FromPrimitive;
+        let addr: Address = FromPrimitive::from_u8(0x17).unwrap();
+        assert_eq!(addr, Address::OperationLock);
     }
 }
