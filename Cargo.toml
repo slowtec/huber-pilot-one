@@ -1,9 +1,12 @@
 [package]
 name = "huber-pilot-one"
-version = "0.0.0"
+version = "0.1.0"
 authors = ["Markus Kohlhase <markus.kohlhase@slowtec.de>"]
 license = "MIT/Apache-2.0"
 description = "huber Pilot ONE library"
+readme = "README.md"
+homepage = "https://github.com/slowtec/huber-pilot-one"
+repository = "https://github.com/slowtec/huber-pilot-one"
 
 [dependencies]
 num-traits = "0.2"
