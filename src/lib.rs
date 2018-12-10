@@ -3,7 +3,8 @@ extern crate num_derive;
 
 use num_traits::cast::ToPrimitive;
 use std::{
-    io::{Error, ErrorKind, Result},
+    fmt,
+    io::{Error, ErrorKind},
     str::FromStr,
 };
 
@@ -104,14 +105,49 @@ impl Command {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParseError {
+    /// Invalid message length
+    MessageLength,
+    /// Non-ASCII str
+    NonAsciiStr,
+    /// Invalid sender
+    Sender,
+    /// Invalid command data
+    CommandData,
+    /// Invalid command address
+    Address,
+}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        use self::ParseError::*;
+        match *self {
+            MessageLength => write!(f, "Invalid message length"),
+            NonAsciiStr => write!(f, "Non-ASCII str"),
+            Sender => write!(f, "Invalid sender"),
+            CommandData => write!(f, "Invalid command data"),
+            Address => write!(f, "Invalid command address"),
+        }
+    }
+}
+
+impl std::error::Error for ParseError {}
+
+impl From<ParseError> for Error {
+    fn from(e: ParseError) -> Error {
+        Error::new(ErrorKind::InvalidData, e)
+    }
+}
+
 impl FromStr for Command {
-    type Err = Error;
-    fn from_str(s: &str) -> Result<Self> {
+    type Err = ParseError;
+    fn from_str(s: &str) -> Result<Self, ParseError> {
         if s.len() != 10 {
-            return Err(Error::new(ErrorKind::InvalidData, "Invalid message length"));
+            return Err(ParseError::MessageLength);
         }
         if !s.is_ascii() {
-            return Err(Error::new(ErrorKind::InvalidData, "None-ASCII str"));
+            return Err(ParseError::NonAsciiStr);
         }
 
         let (_start, tail) = s.split_at(1);
@@ -123,23 +159,16 @@ impl FromStr for Command {
             "M" => Sender::Master,
             "S" => Sender::Slave,
             _ => {
-                return Err(Error::new(
-                    ErrorKind::InvalidData,
-                    format!("Invalid sender '{}'", sender),
-                ));
+                return Err(ParseError::Sender);
             }
         };
 
         let data = match data {
             "****" => None,
-            _ => Some(
-                u16::from_str_radix(data, 16)
-                    .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid command data"))?,
-            ),
+            _ => Some(u16::from_str_radix(data, 16).map_err(|_| ParseError::CommandData)?),
         };
 
-        let address = u8::from_str_radix(addr, 16)
-            .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid address"))?;
+        let address = u8::from_str_radix(addr, 16).map_err(|_| ParseError::Address)?;
 
         Ok(Command {
             sender,
