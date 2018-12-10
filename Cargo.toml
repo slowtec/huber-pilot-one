@@ -7,6 +7,7 @@ description = "huber Pilot ONE library"
 readme = "README.md"
 homepage = "https://github.com/slowtec/huber-pilot-one"
 repository = "https://github.com/slowtec/huber-pilot-one"
+edition = "2018"
 
 [dependencies]
 num-traits = "0.2"

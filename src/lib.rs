@@ -1,10 +1,11 @@
-extern crate num_traits;
 #[macro_use]
 extern crate num_derive;
 
 use num_traits::cast::ToPrimitive;
-use std::io::{Error, ErrorKind, Result};
-use std::str::FromStr;
+use std::{
+    io::{Error, ErrorKind, Result},
+    str::FromStr,
+};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Command {
@@ -131,8 +132,10 @@ impl FromStr for Command {
 
         let data = match data {
             "****" => None,
-            _ => Some(u16::from_str_radix(data, 16)
-                .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid command data"))?),
+            _ => Some(
+                u16::from_str_radix(data, 16)
+                    .map_err(|_| Error::new(ErrorKind::InvalidData, "Invalid command data"))?,
+            ),
         };
 
         let address = u8::from_str_radix(addr, 16)
@@ -149,7 +152,7 @@ impl FromStr for Command {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use Sender::*;
+    use crate::Sender::*;
 
     #[test]
     fn from_str_with_invalid_len() {
@@ -198,7 +201,8 @@ mod tests {
                 sender: Master,
                 address: 0x31,
                 data: None,
-            }.into_bytes()[0],
+            }
+            .into_bytes()[0],
             '{' as u8
         );
     }
@@ -212,7 +216,8 @@ mod tests {
                 sender: Master,
                 address,
                 data,
-            }.into_bytes()[1],
+            }
+            .into_bytes()[1],
             'M' as u8
         );
         assert_eq!(
@@ -220,7 +225,8 @@ mod tests {
                 sender: Slave,
                 address,
                 data,
-            }.into_bytes()[1],
+            }
+            .into_bytes()[1],
             'S' as u8
         );
     }
@@ -233,7 +239,8 @@ mod tests {
             sender,
             address: 0x31,
             data,
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(cmd[2], '3' as u8);
         assert_eq!(cmd[3], '1' as u8);
 
@@ -241,7 +248,8 @@ mod tests {
             sender,
             address: 0x7,
             data,
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(cmd[2], '0' as u8);
         assert_eq!(cmd[3], '7' as u8);
     }
@@ -255,28 +263,32 @@ mod tests {
             sender,
             address,
             data: Some(1),
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(&cmd[4..8], b"0001");
 
         let cmd = Command {
             sender,
             address,
             data: Some(0xab),
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(&cmd[4..8], b"00AB");
 
         let cmd = Command {
             sender,
             address,
             data: Some(::std::u16::MAX),
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(&cmd[4..8], b"FFFF");
 
         let cmd = Command {
             sender,
             address,
             data: None,
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(&cmd[4..8], b"****");
     }
 
@@ -286,7 +298,8 @@ mod tests {
             sender: Master,
             address: 0x22,
             data: None,
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(&cmd[8..10], b"\r\n");
     }
 
@@ -296,14 +309,16 @@ mod tests {
             sender: Sender::Master,
             address: 0x09,
             data: Some(0x05E8),
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(cmd, b"{M0905E8\r\n");
 
         let cmd = Command {
             sender: Sender::Slave,
             address: 0x19,
             data: Some(0x0001),
-        }.into_bytes();
+        }
+        .into_bytes();
         assert_eq!(cmd, b"{S190001\r\n");
     }
 
