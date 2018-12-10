@@ -60,13 +60,13 @@ impl Into<u8> for Address {
 
 impl Command {
     pub fn into_bytes(self) -> Vec<u8> {
-        let mut res = vec!['{' as u8];
+        let mut res = vec![b'{'];
         match self.sender {
             Sender::Master => {
-                res.push('M' as u8);
+                res.push(b'M');
             }
             Sender::Slave => {
-                res.push('S' as u8);
+                res.push(b'S');
             }
         }
         let mut addr = format!("{:X}", self.address);
@@ -95,11 +95,11 @@ impl Command {
                 res.append(&mut data.as_bytes().into());
             }
             None => {
-                res.append(&mut "****".as_bytes().into());
+                res.extend_from_slice(b"****");
             }
         }
-        res.push('\r' as u8);
-        res.push('\n' as u8);
+        res.push(b'\r');
+        res.push(b'\n');
         res
     }
 }
