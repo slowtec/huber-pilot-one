@@ -59,17 +59,20 @@ impl Into<u8> for Address {
     }
 }
 
+impl Into<u8> for Sender {
+    fn into(self: Sender) -> u8 {
+        use self::Sender::*;
+        match self {
+            Master => b'M',
+            Slave => b'S',
+        }
+    }
+}
+
 impl Command {
     pub fn into_bytes(self) -> Vec<u8> {
         let mut res = vec![b'{'];
-        match self.sender {
-            Sender::Master => {
-                res.push(b'M');
-            }
-            Sender::Slave => {
-                res.push(b'S');
-            }
-        }
+        res.push(self.sender.into());
         let mut addr = format!("{:X}", self.address);
         if addr.len() < 2 {
             addr = format!("0{}", addr);
@@ -234,6 +237,14 @@ mod tests {
             .into_bytes()[0],
             '{' as u8
         );
+    }
+
+    #[test]
+    fn sender_into_u8() {
+        let x: u8 = Master.into();
+        assert_eq!(x, b'M');
+        let x: u8 = Slave.into();
+        assert_eq!(x, b'S');
     }
 
     #[test]
