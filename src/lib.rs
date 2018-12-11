@@ -81,42 +81,46 @@ impl Into<u8> for Sender {
     }
 }
 
+const EMPTY_DATA: [u8; 4] = [b'*'; 4];
+
+const fn byte_cmd_msg(sender: u8, addr: [u8; 2], data: [u8; 4]) -> [u8; 10] {
+    [
+        b'{', sender, addr[0], addr[1], data[0], data[1], data[2], data[3], b'\r', b'\n',
+    ]
+}
+
 impl Command {
-    pub fn into_bytes(self) -> Vec<u8> {
-        let mut res = vec![b'{'];
-        res.push(self.sender.into());
+    pub fn into_bytes(self) -> [u8; 10] {
         let mut addr = format!("{:X}", self.address);
         if addr.len() < 2 {
             addr = format!("0{}", addr);
         }
-        res.append(&mut addr.as_bytes().into());
-        match self.data {
-            Some(d) => {
-                let mut data = format!("{:X}", d);
-                match data.len() {
-                    1 => {
-                        data = format!("000{}", data);
-                    }
-                    2 => {
-                        data = format!("00{}", data);
-                    }
-                    3 => {
-                        data = format!("0{}", data);
-                    }
-                    4 => { /* nothing to do */ }
-                    _ => {
-                        unreachable!();
-                    }
+        let addr = addr.as_bytes();
+        let addr: [u8; 2] = [addr[0], addr[1]];
+        let mut data = EMPTY_DATA;
+        if let Some(d) = self.data {
+            let mut hex = format!("{:X}", d);
+            match hex.len() {
+                1 => {
+                    hex = format!("000{}", hex);
                 }
-                res.append(&mut data.as_bytes().into());
+                2 => {
+                    hex = format!("00{}", hex);
+                }
+                3 => {
+                    hex = format!("0{}", hex);
+                }
+                4 => { /* nothing to do */ }
+                _ => {
+                    unreachable!();
+                }
             }
-            None => {
-                res.extend_from_slice(b"****");
+            let hex = hex.as_bytes();
+            for (idx, h) in hex.iter().enumerate() {
+                data[idx] = *h;
             }
         }
-        res.push(b'\r');
-        res.push(b'\n');
-        res
+        byte_cmd_msg(self.sender.into(), addr, data)
     }
 }
 
@@ -363,7 +367,7 @@ mod tests {
             data: Some(0x05E8),
         }
         .into_bytes();
-        assert_eq!(cmd, b"{M0905E8\r\n");
+        assert_eq!(cmd, *b"{M0905E8\r\n");
 
         let cmd = Command {
             sender: Sender::Slave,
@@ -371,7 +375,7 @@ mod tests {
             data: Some(0x0001),
         }
         .into_bytes();
-        assert_eq!(cmd, b"{S190001\r\n");
+        assert_eq!(cmd, *b"{S190001\r\n");
     }
 
     #[test]
