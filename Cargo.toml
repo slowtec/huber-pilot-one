@@ -9,10 +9,6 @@ homepage = "https://github.com/slowtec/huber-pilot-one"
 repository = "https://github.com/slowtec/huber-pilot-one"
 edition = "2018"
 
-[dependencies]
-num-traits = "0.2"
-num-derive = "0.2"
-
 [badges]
 travis-ci = { repository = "slowtec/huber-pilot-one" }
 maintenance = { status = "actively-developed" }

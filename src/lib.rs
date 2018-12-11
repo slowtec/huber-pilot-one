@@ -1,7 +1,3 @@
-#[macro_use]
-extern crate num_derive;
-
-use num_traits::cast::ToPrimitive;
 use std::{
     fmt,
     io::{Error, ErrorKind},
@@ -21,7 +17,7 @@ pub enum Sender {
     Slave,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, FromPrimitive, ToPrimitive)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Address {
     /// Setpoint temperature controller
     SetpointTempControl = 0x00,
@@ -51,11 +47,27 @@ pub enum Address {
     ProcessTempActualSettingMode = 0x19,
 }
 
+impl Address {
+    pub fn from_u8(x: u8) -> Option<Self> {
+        use self::Address::*;
+        match x {
+            0x00 => Some(SetpointTempControl),
+            0x01 => Some(InternalTemp),
+            0x05 => Some(ErrorReport),
+            0x06 => Some(WarningMessage),
+            0x09 => Some(SetProcessTemp),
+            0x13 => Some(TempControlMode),
+            0x14 => Some(TempControl),
+            0x17 => Some(OperationLock),
+            0x19 => Some(ProcessTempActualSettingMode),
+            _ => None,
+        }
+    }
+}
+
 impl Into<u8> for Address {
     fn into(self: Address) -> u8 {
-        // Note: we can safly unwrap here
-        // because max. of CmdAddress is 0x17 < 2^8
-        self.to_u8().unwrap()
+        self as u8
     }
 }
 
@@ -364,15 +376,42 @@ mod tests {
 
     #[test]
     fn encode_address_enum() {
-        assert_eq!(Address::OperationLock.to_u8().unwrap(), 0x17);
+        use self::Address::*;
+        let expected = vec![
+            (SetpointTempControl, 0x00),
+            (InternalTemp, 0x01),
+            (ErrorReport, 0x05),
+            (WarningMessage, 0x06),
+            (SetProcessTemp, 0x09),
+            (TempControlMode, 0x13),
+            (TempControl, 0x14),
+            (OperationLock, 0x17),
+            (ProcessTempActualSettingMode, 0x19),
+        ];
+        for (addr, nr) in expected {
+            assert_eq!(addr as u8, nr);
+        }
         let byte: u8 = Address::OperationLock.into();
         assert_eq!(byte, 0x17);
     }
 
     #[test]
     fn decode_address_enum() {
-        use num_traits::cast::FromPrimitive;
-        let addr: Address = FromPrimitive::from_u8(0x17).unwrap();
-        assert_eq!(addr, Address::OperationLock);
+        use self::Address::*;
+        let expected = vec![
+            (SetpointTempControl, 0x00),
+            (InternalTemp, 0x01),
+            (ErrorReport, 0x05),
+            (WarningMessage, 0x06),
+            (SetProcessTemp, 0x09),
+            (TempControlMode, 0x13),
+            (TempControl, 0x14),
+            (OperationLock, 0x17),
+            (ProcessTempActualSettingMode, 0x19),
+        ];
+        for (addr, nr) in expected {
+            assert_eq!(Address::from_u8(nr).unwrap(), addr);
+        }
+        assert!(Address::from_u8(255).is_none());
     }
 }
