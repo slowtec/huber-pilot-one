@@ -26,7 +26,8 @@ before_script:
 script:
   - |
       cargo build &&
-      cargo test
+      cargo test &&
+      cargo test --no-default-features
 
 after_success:
   - cargo coveralls

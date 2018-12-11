@@ -1,8 +1,13 @@
+// Support using the library without the standard library
+#![cfg_attr(not(feature = "std"), no_std)]
+
+#[cfg(features = "std")]
 use std::{
     fmt,
     io::{Error, ErrorKind},
-    str::FromStr,
 };
+
+use core::str::FromStr;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Command {
@@ -17,7 +22,7 @@ pub enum Sender {
     Slave,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Address {
     /// Setpoint temperature controller
     SetpointTempControl = 0x00,
@@ -91,34 +96,18 @@ const fn byte_cmd_msg(sender: u8, addr: [u8; 2], data: [u8; 4]) -> [u8; 10] {
 
 impl Command {
     pub fn into_bytes(self) -> [u8; 10] {
-        let mut addr = format!("{:X}", self.address);
-        if addr.len() < 2 {
-            addr = format!("0{}", addr);
-        }
-        let addr = addr.as_bytes();
-        let addr: [u8; 2] = [addr[0], addr[1]];
+        let addr: [u8; 2] = [
+            to_upper_hex(self.address / 16),
+            to_upper_hex(self.address % 16),
+        ];
         let mut data = EMPTY_DATA;
         if let Some(d) = self.data {
-            let mut hex = format!("{:X}", d);
-            match hex.len() {
-                1 => {
-                    hex = format!("000{}", hex);
-                }
-                2 => {
-                    hex = format!("00{}", hex);
-                }
-                3 => {
-                    hex = format!("0{}", hex);
-                }
-                4 => { /* nothing to do */ }
-                _ => {
-                    unreachable!();
-                }
-            }
-            let hex = hex.as_bytes();
-            for (idx, h) in hex.iter().enumerate() {
-                data[idx] = *h;
-            }
+            let hi = (d >> 8) as u8;
+            let lo = d as u8;
+            data[0] = to_upper_hex(hi / 16);
+            data[1] = to_upper_hex(hi % 16);
+            data[2] = to_upper_hex(lo / 16);
+            data[3] = to_upper_hex(lo % 16);
         }
         byte_cmd_msg(self.sender.into(), addr, data)
     }
@@ -138,6 +127,7 @@ pub enum ParseError {
     Address,
 }
 
+#[cfg(features = "std")]
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::ParseError::*;
@@ -151,8 +141,10 @@ impl fmt::Display for ParseError {
     }
 }
 
+#[cfg(features = "std")]
 impl std::error::Error for ParseError {}
 
+#[cfg(features = "std")]
 impl From<ParseError> for Error {
     fn from(e: ParseError) -> Error {
         Error::new(ErrorKind::InvalidData, e)
@@ -194,6 +186,16 @@ impl FromStr for Command {
             address,
             data,
         })
+    }
+}
+
+// TODO: replace this conversation with other methods
+// as soon as there is something available within core.
+fn to_upper_hex(x: u8) -> u8 {
+    match x {
+        0..=9 => b'0' + x,
+        10..=15 => b'A' + (x - 10),
+        _ => unreachable!(),
     }
 }
 
@@ -288,6 +290,14 @@ mod tests {
     }
 
     #[test]
+    fn test_to_upper_hex() {
+        assert_eq!(to_upper_hex(0) as char, '0');
+        assert_eq!(to_upper_hex(9) as char, '9');
+        assert_eq!(to_upper_hex(10) as char, 'A');
+        assert_eq!(to_upper_hex(15) as char, 'F');
+    }
+
+    #[test]
     fn encode_address() {
         let data = None;
         let sender = Slave;
@@ -308,6 +318,15 @@ mod tests {
         .into_bytes();
         assert_eq!(cmd[2], '0' as u8);
         assert_eq!(cmd[3], '7' as u8);
+
+        let cmd = Command {
+            sender,
+            address: 255,
+            data,
+        }
+        .into_bytes();
+        assert_eq!(cmd[2], 'F' as u8);
+        assert_eq!(cmd[3], 'F' as u8);
     }
 
     #[test]
@@ -334,7 +353,7 @@ mod tests {
         let cmd = Command {
             sender,
             address,
-            data: Some(::std::u16::MAX),
+            data: Some(core::u16::MAX),
         }
         .into_bytes();
         assert_eq!(&cmd[4..8], b"FFFF");
@@ -381,7 +400,7 @@ mod tests {
     #[test]
     fn encode_address_enum() {
         use self::Address::*;
-        let expected = vec![
+        let expected = &[
             (SetpointTempControl, 0x00),
             (InternalTemp, 0x01),
             (ErrorReport, 0x05),
@@ -393,7 +412,7 @@ mod tests {
             (ProcessTempActualSettingMode, 0x19),
         ];
         for (addr, nr) in expected {
-            assert_eq!(addr as u8, nr);
+            assert_eq!(*addr as u8, *nr);
         }
         let byte: u8 = Address::OperationLock.into();
         assert_eq!(byte, 0x17);
@@ -402,7 +421,7 @@ mod tests {
     #[test]
     fn decode_address_enum() {
         use self::Address::*;
-        let expected = vec![
+        let expected = &[
             (SetpointTempControl, 0x00),
             (InternalTemp, 0x01),
             (ErrorReport, 0x05),
@@ -414,7 +433,7 @@ mod tests {
             (ProcessTempActualSettingMode, 0x19),
         ];
         for (addr, nr) in expected {
-            assert_eq!(Address::from_u8(nr).unwrap(), addr);
+            assert_eq!(Address::from_u8(*nr).unwrap(), *addr);
         }
         assert!(Address::from_u8(255).is_none());
     }
