@@ -1,7 +1,7 @@
 // Support using the library without the standard library
 #![cfg_attr(not(feature = "std"), no_std)]
 
-#[cfg(features = "std")]
+#[cfg(feature = "std")]
 use std::{
     fmt,
     io::{Error, ErrorKind},
@@ -127,7 +127,7 @@ pub enum ParseError {
     Address,
 }
 
-#[cfg(features = "std")]
+#[cfg(feature = "std")]
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         use self::ParseError::*;
@@ -141,10 +141,10 @@ impl fmt::Display for ParseError {
     }
 }
 
-#[cfg(features = "std")]
+#[cfg(feature = "std")]
 impl std::error::Error for ParseError {}
 
-#[cfg(features = "std")]
+#[cfg(feature = "std")]
 impl From<ParseError> for Error {
     fn from(e: ParseError) -> Error {
         Error::new(ErrorKind::InvalidData, e)
