@@ -8,12 +8,16 @@ categories = ["no-std","embedded"]
 readme = "README.md"
 homepage = "https://github.com/slowtec/huber-pilot-one"
 repository = "https://github.com/slowtec/huber-pilot-one"
-edition = "2018"
+edition = "2021"
+rust-version = "1.79"
 
 [features]
 default = ["std"]
 std = []
 
-[badges]
-travis-ci = { repository = "slowtec/huber-pilot-one" }
-maintenance = { status = "actively-developed" }
+[lints.clippy]
+pedantic = { level = "warn", priority = -1 }
+missing_const_for_fn = "warn"
+
+# The error types returned should be self-explanatory.
+missing_errors_doc = "allow"
